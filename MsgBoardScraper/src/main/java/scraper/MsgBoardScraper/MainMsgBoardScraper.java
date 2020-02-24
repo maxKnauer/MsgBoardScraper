@@ -6,5 +6,7 @@ public class MainMsgBoardScraper {
 		MsgBoardFrame mainFrame = new MsgBoardFrame();
 		mainFrame.setVisible(true);
 		
+		
+		
 	}
 }

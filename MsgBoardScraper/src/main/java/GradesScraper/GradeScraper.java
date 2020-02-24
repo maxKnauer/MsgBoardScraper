@@ -1,5 +1,10 @@
 package GradesScraper;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -23,28 +28,35 @@ public class GradeScraper {
 	private static List<WebElement> rowsGrade;
 	private static List<String> courseString = new ArrayList<String>();
 	private static List<String> gradeString= new ArrayList<String>();
+	private static String mailContent;
 	
-	private static String mailContent = "Das sind deine Noten";
+	private static File file = new File("/Users/maxknauer/git/MsgBoardScraper/MsgBoardScraper/zugang");
 	
-	
-	public static void main(String [] args) throws EmailException, InterruptedException {
+	public static void main(String [] args) throws EmailException, InterruptedException, IOException {
+//Login Data aus File
+		FileReader fr = new FileReader(file);
+		BufferedReader br = new BufferedReader(fr);
+		String zeile;
+		String [] loginData = new String[2];
+		int i = 0;
 		
-		gradeString.clear();
-		courseString.clear();
-
+		while((zeile = br.readLine()) != null ) {
+			
+			loginData[i]= zeile;
+			i++;
+		}
+		br.close();
+		fr.close();
+//Def WebDriver	
 		System.setProperty("webdriver.chrome.driver", "chromedriver");
-
 		ChromeOptions headlessOpt = new ChromeOptions();
 		headlessOpt.addArguments("--headless");
-		//headlessOpt.addArguments("--window-size=1000,900");
 		WebDriver wDriver = new ChromeDriver(headlessOpt);
-
-//Website aufruf und navigation zum Table
+//Webite Aufruf, Navigation zum Table
 		wDriver.navigate().to("https://www.fh-bielefeld.de/qisserver/rds?state=user&type=0");
 		wDriver.findElement(By.cssSelector("#wrapper > div.lsf_tab_outer > table > tbody > tr > td > div > div.content_max_portal_qis > div > div.portalcontent1 > div > ol > a > button")).click();
-
-		wDriver.findElement(By.name("asdf")).sendKeys("mknauer");
-		wDriver.findElement(By.name("fdsa")).sendKeys("a11roy");
+		wDriver.findElement(By.name("asdf")).sendKeys(loginData[0]);
+		wDriver.findElement(By.name("fdsa")).sendKeys(loginData[1]);
 		wDriver.findElement(By.cssSelector("#loginForm\\:login")).click();
 		wDriver.findElement(By.cssSelector("#makronavigation > ul > li:nth-child(2) > a")).click();
 		wDriver.findElement(By.cssSelector("#wrapper > div.lsf_tab_outer > table > tbody > tr > td > div > div.content_max_portal_qis > div > form > div > ul > li:nth-child(3) > a")).click();
@@ -52,41 +64,23 @@ public class GradeScraper {
 //Anzahl der TR
 		rows = wDriver.findElements(By.xpath("//*[@id=\"wrapper\"]/div[5]/table/tbody/tr/td/div/div[2]/form/table[2]/tbody/tr"));
 		System.out.println("Number of Rows: " + rows.size());
-//Inhalte suchen Fach + Note
-		rowsCourse = wDriver.findElements(By.xpath("//*[@id=\"wrapper\"]/div[5]/table/tbody/tr/td/div/div[2]/form/table[2]/tbody/tr/td[2]"));
-		rowsGrade = wDriver.findElements(By.xpath("//*[@id=\"wrapper\"]/div[5]/table/tbody/tr/td/div/div[2]/form/table[2]/tbody/tr/td[4]"));
-
-		for(WebElement c : rowsCourse) {
-			courseString.add(c.getText());
-		}
-		for(WebElement g : rowsGrade) {
-			gradeString.add(g.getText());
-		}
-
-		for(int i = 0; i < gradeString.size(); i++) {
-			if(rowsCourse.get(i).getText().equals("1. Wahlpflichtmodul")) {
-				continue;
-			}else {
-				System.out.println(rowsCourse.get(i).getText() + "	Note: " + rowsGrade.get(i).getText());
-			}
-			mailContent = rowsCourse.get(i).getText() + " Note: " + rowsGrade.get(i).getText() + "\n" + mailContent;
-		}
-
-		//		    autoMail.autoMail(mailContent);
-
+//in Methode mailContent auslesen und schreiben, Initialmail versenden
+		mailContent = MailContentWriter.mailContentWriter(wDriver, mailContent, gradeString, rowsCourse, rowsGrade, courseString);
+		autoMail.autoMail(mailContent);	
+// Vergleichs definition 
 		compRows = wDriver.findElements(By.xpath("//*[@id=\"wrapper\"]/div[5]/table/tbody/tr/td/div/div[2]/form/table[2]/tbody/tr"));
-	
-		Thread.sleep(5000);
-		
+		Thread.sleep(1000);
+//Prüfen ob neues TR hinzugefügt wurde
 		while(rows.size() == compRows.size()) {
 			wDriver.navigate().refresh();
-			System.out.println("test1");
-			Thread.sleep(20000); 
-			System.out.println("test2");
+			//System.out.println("Änderung");
+		    Thread.sleep(10000); 
+			//System.out.println("Element wird gesucht");
 			compRows = wDriver.findElements(By.xpath("//*[@id=\"wrapper\"]/div[5]/table/tbody/tr/td/div/div[2]/form/table[2]/tbody/tr"));
-			System.out.println(compRows.size());
-			
+			//System.out.println(compRows.size());	
 		}
+		mailContent = MailContentWriter.mailContentWriter(wDriver, mailContent, gradeString, rowsCourse, rowsGrade, courseString);
+		autoMail.autoMail(mailContent);
 		System.out.println("Neue Noten Online");
 	}
 }
